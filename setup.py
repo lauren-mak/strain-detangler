@@ -21,7 +21,7 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': [
-            'strain-detangler=strain-detangler.cli:main'
+            'strain-detangler=strain_detangler.cli:main'
         ]
     },
     classifiers=[
