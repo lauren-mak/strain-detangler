@@ -38,11 +38,8 @@ def cli_pangenome():
 def split_reference(reference, output):
     """Split reference sequence into gene-specific count files."""
     outdir = check_directory(output, 'genes/')
-    lname = join(output, prefix(reference) + '.genes.list')
     for gene in SeqIO.parse(reference, "fasta"):  # For gene in the reference sequence
         outfile = join(outdir, gene.id + '.counts.csv')
-        with open(lname, 'a+') as lf:
-            lf.write(outfile + '\n')
         with open(outfile, 'w+') as cf:
             header = ['Sample']
             for i in range(len(gene)):
@@ -82,6 +79,7 @@ def split_pileup(pileup, output):
             last_pos = curr_pos
     write_to_gene_file(outdir, curr_gene, last_pos, pinfo)
 
+
 @main.command('reduce')
 @click.option('-m', '--metric', default='cosine')
 @click.option('-r', '--radius', default=0.01)
@@ -103,19 +101,21 @@ def reduce(metric, radius, output, filename):   # Adapted from DD's gimmebio.sta
         logger=logger
     )
     click.echo(full_reduced.shape, err=True)
-    outfile = join(outdir, prefix(filename) + 'reduced.csv')
+    outfile = join(outdir, prefix(filename) + '.reduced.csv')
     full_reduced.to_csv(outfile)
-    with open(join(outdir, '.reduced.list'), 'a+', newline='') as lf:
-        writer(lf).writerow(outfile)
+    # with open(join(outdir, '.reduced.list'), 'a+', newline='') as lf:
+    #     writer(lf).writerow(outfile)
 
 
 @main.command('lda_train')
 @click.option('-bf', '--band_filter', default=0.001,
               help='Threshold to filter out uninformative position-alleles')
+@click.option('-t', '--num_topics', default=10,
+              help='Max number of LDA topics (strains) to train for')
 @click.option('-o', '--output', type=click.Path(), default='./',
               help='Master output directory')
 @click.argument('file_list')
-def lda_train(file_list, band_filter, output):
+def lda_train(file_list, band_filter, num_topics, output):
     """Generate sample and strain composition matrices via LDA."""
     def logger(i):
         if (i % 100) == 0:
@@ -135,7 +135,7 @@ def lda_train(file_list, band_filter, output):
         click.echo(f'Removed {filter_info[0]} position-alleles that may be sequencing errors', err=True)
         click.echo(f'Removed {filter_info[1]} position-alleles that are not informative', err=True)
 
-    lda_gensim(dframe, output, fname, logger=lambda x: click.echo(x, err=True))
+    lda_gensim(dframe, output, fname, num_topics, logger=lambda x: click.echo(x, err=True))
 
 
 @main.command('cluster_map')

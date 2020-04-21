@@ -163,7 +163,7 @@ def topic_word_matrix(model, outdir, fname, logger):
     tw_list = model.show_topics(formatted=False)  # list of {str, tuple of (str, float)
     topics_words = [(tp[0], [wd[0] for wd in tp[1]]) for tp in tw_list]
     # Converts list of tuple of (str,list[tuple]) to list of tuple of (str,list)
-    with open(join(outdir, fname + '.gensim_topwords.csv'), "a+") as tfile:
+    with open(join(outdir, fname + '.gensim_topwords.csv'), "w") as tfile:
         tw_writer = writer(tfile)
         for tw in tw_list:  # tw = tuple{str, list[tuple{str,float}]}
             out_str = [tw[0]]  # [topic_name]
@@ -184,16 +184,14 @@ def document_topic_matrix(model, corpus, row_names, outdir, fname, logger):
     logger('Saved the document-topic matrix')
 
 
-def lda_gensim(dframe, output, fname, logger):  # An adaptation of DD's run_lda.py.
+def lda_gensim(dframe, output, fname, topics, logger):  # An adaptation of DD's run_lda.py.
     # Data preparation for LDA
     id2word = {i: taxa_name for i, taxa_name in enumerate(list(dframe.columns))}
     corpus = pandas_as_corpus(dframe)
     logger('Finished loading id2word and dataframe as corpus')
 
     # Running the LDA and pickling
-    topics = 10
-    iterations = 1000
-    lda10 = LdaModel(corpus, id2word=id2word, num_topics=topics, iterations=iterations, passes=10)
+    lda10 = LdaModel(corpus, id2word=id2word, num_topics=topics, iterations=1000, passes=10)
     logger('Finished training LDA model, now pickling')
     outdir = check_directory(output, 'model/')
     lda10.save(join(outdir, fname + '.gensim_model.pkl'))
