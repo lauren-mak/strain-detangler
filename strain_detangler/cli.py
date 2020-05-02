@@ -6,12 +6,12 @@ from Bio import SeqIO
 from csv import writer
 from os.path import join
 from seaborn import clustermap
+from sys import exit 
 
 from .api import (
     build_pangenome,
     entropy_reduce_position_matrix,
     prefix,
-    check_directory,
     parse_pileup_bases,
     write_to_gene_file,
     concat_matrices,
@@ -37,9 +37,8 @@ def cli_pangenome():
 @click.argument('reference', type=click.Path())
 def split_reference(reference, output):
     """Split reference sequence into gene-specific count files."""
-    outdir = check_directory(output, 'genes/')
     for gene in SeqIO.parse(reference, "fasta"):  # For gene in the reference sequence
-        outfile = join(outdir, gene.id + '.counts.csv')
+        outfile = join(output, gene.id + '.counts.csv')
         with open(outfile, 'w+') as cf:
             header = ['Sample']
             for i in range(len(gene)):
@@ -57,17 +56,19 @@ def split_pileup(pileup, output):
     # Each pileup line: NODE_23_length_20156_cov_7.51057        1813    G       1       ^M.     <
     pname = prefix(pileup)
     curr_gene = open(pileup, 'r').readline().strip().split('\t')[0]
+    if not curr_gene:  # No reads mapped to any of the genes in this sample. 
+        click.echo(f'{pname} did not have reads that mapped to any gene', err=True)
+        exit()
     pinfo = [pname]
     last_pos = 0
 
-    outdir = check_directory(output, 'genes/')
     with open(pileup) as pf:  # A samtools mpileup parser.
         for line in pf:  # For each position of each scaffold with read coverage in this sample...
             tkns = line.strip().split('\t')
             if int(tkns[3]) == 0:
                 continue
             if tkns[0] != curr_gene:  # If new gene is being processed, finish the line corresponding to the last gene.
-                write_to_gene_file(outdir, curr_gene, last_pos, pinfo)
+                write_to_gene_file(output, curr_gene, last_pos, pinfo)
                 curr_gene = tkns[0]  # Update to the current gene.
                 pinfo = [pname]
                 last_pos = 0  # Reset to the start of the scaffold.
@@ -77,7 +78,7 @@ def split_pileup(pileup, output):
                 pinfo += ['0', '0', '0', '0']
             pinfo += parse_pileup_bases(tkns[2], tkns[4], tkns[5])  # ...write the read coverage at that position.
             last_pos = curr_pos
-    write_to_gene_file(outdir, curr_gene, last_pos, pinfo)
+    write_to_gene_file(output, curr_gene, last_pos, pinfo)
 
 
 @main.command('reduce')
@@ -89,11 +90,13 @@ def split_pileup(pileup, output):
 def reduce(metric, radius, output, filename):   # Adapted from DD's gimmebio.stat-strains.reduce.
     """Reduce number of SNP columns by radial set coverage."""
     def logger(n_centroids, n_cols):
-        if (n_cols % 100) == 0:
+        if (n_cols % 1000) == 0:
             click.echo(f'{n_centroids} centroids, {n_cols} columns', err=True)
 
-    outdir = check_directory(output, 'reduced/')
     matrix = pd.read_csv(filename, index_col=0, header=0)
+    if matrix.empty:
+        click.echo(f'{prefix(filename)} was not covered by any sample', err=True)
+        exit()        
     full_reduced = entropy_reduce_position_matrix(
         matrix,
         radius,
@@ -101,7 +104,7 @@ def reduce(metric, radius, output, filename):   # Adapted from DD's gimmebio.sta
         logger=logger
     )
     click.echo(full_reduced.shape, err=True)
-    outfile = join(outdir, prefix(filename) + '.reduced.csv')
+    outfile = join(output, prefix(filename) + '.reduced.csv')
     full_reduced.to_csv(outfile)
     # with open(join(outdir, '.reduced.list'), 'a+', newline='') as lf:
     #     writer(lf).writerow(outfile)
@@ -147,14 +150,13 @@ def lda_train(file_list, band_filter, num_topics, output):
 def cluster_map(filename, metadata, output):
     """Generate seaborn clustermap for the input file."""
     fname = prefix(filename)
-    outdir = check_directory(output, 'model/')
 
     final = pd.read_csv(filename, header=0, index_col=0).join(pd.read_csv(metadata, header=0, index_col=0), how='left')
     final.fillna('experiment', inplace=True)
         # This fills in the metadata (city and continent) of samples without an entry with 'experiment'.
     final_filter = final[final['Type'] != 'excluded']  # Pick all samples that don't have inconsistencies.
     controls = final_filter[final_filter['Type'] != 'experiment']
-    controls.to_csv(join(outdir, fname + "_controls.csv"), index=True)  # Output samples that aren't labeled as cases.
+    controls.to_csv(join(output, fname + "_controls.csv"), index=True)  # Output samples that aren't labeled as cases.
 
     # Make the base figure.
     results_only = final_filter.iloc[:, 0:(len(final.columns) - 2)]
@@ -172,7 +174,7 @@ def cluster_map(filename, metadata, output):
     fig.ax_col_dendrogram.legend(loc="center", ncol=4)
     fig.cax.set_position([.97, .2, .03, .45])
 
-    fig.savefig(join(outdir, fname + '.cmap.png'))
+    fig.savefig(join(output, fname + '.cmap.png'))
     click.echo('Finished making document-topic cluster-map', err=True)
 
 

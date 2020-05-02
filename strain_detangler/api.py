@@ -59,13 +59,6 @@ def prefix(filename):
     return '.'.join([str(i) for i in lst])
 
 
-def check_directory(output, subdir):
-    outdir = dirname(join(output, subdir))
-    if not exists(outdir):
-        makedirs(outdir)
-    return outdir
-
-
 def parse_pileup_bases(ref_base, read_bases, read_quals):  # Adapted from DESMAN's pileup_to_freq_table.py.
     nucleotides = ['A', 'T', 'C', 'G', 'a', 't', 'c', 'g']
     min_base_q = 20 + 33  # Phred scale
