@@ -1,0 +1,16 @@
+name: strains
+dependencies:
+    - python=3.7.7
+    - luigi
+    - click
+    - pandas
+    - seaborn
+    - numpy
+    - gensim
+    - regex
+    - scipy
+    - scikit-learn
+    - samtools
+    - bowtie
+    - pip:
+        - biopython

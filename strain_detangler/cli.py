@@ -54,7 +54,7 @@ def split_reference(reference, output):
 def split_pileup(pileup, output):
     """Add pileup read-counts to each gene-specific file."""
     # Each pileup line: NODE_23_length_20156_cov_7.51057        1813    G       1       ^M.     <
-    pname = prefix(pileup)
+    pname = prefix(pileup, 2)
     curr_gene = open(pileup, 'r').readline().strip().split('\t')[0]
     if not curr_gene:  # No reads mapped to any of the genes in this sample. 
         click.echo(f'{pname} did not have reads that mapped to any gene', err=True)
@@ -95,7 +95,7 @@ def reduce(metric, radius, output, filename):   # Adapted from DD's gimmebio.sta
 
     matrix = pd.read_csv(filename, index_col=0, header=0)
     if matrix.empty:
-        click.echo(f'{prefix(filename)} was not covered by any sample', err=True)
+        click.echo(f'{prefix(filename, 2)} was not covered by any sample', err=True)
         exit()        
     full_reduced = entropy_reduce_position_matrix(
         matrix,
@@ -104,10 +104,8 @@ def reduce(metric, radius, output, filename):   # Adapted from DD's gimmebio.sta
         logger=logger
     )
     click.echo(full_reduced.shape, err=True)
-    outfile = join(output, prefix(filename) + '.reduced.csv')
+    outfile = join(output, prefix(filename, 2) + '.reduced.csv')
     full_reduced.to_csv(outfile)
-    # with open(join(outdir, '.reduced.list'), 'a+', newline='') as lf:
-    #     writer(lf).writerow(outfile)
 
 
 @main.command('lda_train')
@@ -124,7 +122,7 @@ def lda_train(file_list, band_filter, num_topics, output):
         if (i % 100) == 0:
             click.echo(f'Gene file number {i} loaded', err=True)
 
-    fname = prefix(file_list)
+    fname = prefix(file_list, 2)
     dframe, summary = concat_matrices(file_list, logger)
         # To print the massive dataframe, add directory and filename.
     click.echo("Finished concatenating from list of dataframes", err=True)
@@ -149,7 +147,7 @@ def lda_train(file_list, band_filter, num_topics, output):
 @click.argument('filename')
 def cluster_map(filename, metadata, output):
     """Generate seaborn clustermap for the input file."""
-    fname = prefix(filename)
+    fname = prefix(filename, 2)
 
     final = pd.read_csv(filename, header=0, index_col=0).join(pd.read_csv(metadata, header=0, index_col=0), how='left')
     final.fillna('experiment', inplace=True)
